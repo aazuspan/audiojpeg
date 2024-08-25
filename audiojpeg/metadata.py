@@ -57,6 +57,7 @@ class ParameterSpec:
 class Metadata:
     PARAMETER_SPECS = {
         "sample_rate": ParameterSpec(32, IntParameter),
+        "channels": ParameterSpec(8, IntParameter),
         "amplitude_range": ParameterSpec(16, IntParameter),
         "amplitude_max": ParameterSpec(16, IntParameter),
         "pad_samples": ParameterSpec(16, IntParameter),
@@ -65,6 +66,9 @@ class Metadata:
 
     sample_rate: int
     """The sampling rate of the audio signal, in hertz."""
+
+    channels: int
+    """The number of audio channels in the signal."""
 
     amplitude_max: int
     """The maximum amplitude of the audio signal, prior to scaling."""

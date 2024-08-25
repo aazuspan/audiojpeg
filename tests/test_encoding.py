@@ -16,25 +16,30 @@ def tmp_dir():
         yield Path(tmp_dir)
 
 
-@pytest.fixture(scope="module")
-def wav_file(tmp_dir):
+def make_wav_file(tmp_dir, channels: int = 2, duration: int = 1, rate: int = 44_100):
     """
     Create a temporary stereo WAV file with parameterized sample rate and duration.
     """
     fp = tmp_dir / "test.wav"
 
-    n_samples = 10_000
-    signal = np.random.choice([-10_000, 10_000], size=(2, n_samples)).astype(np.int16)
+    n_samples = int(duration * rate)
+    signal = np.random.choice([-10_000, 10_000], size=(n_samples, channels)).astype(
+        np.int16
+    )
 
-    wavfile.write(fp, rate=44_100, data=signal)
+    wavfile.write(fp, rate=rate, data=signal)
     return fp
 
 
 @given(
-    st.integers(min_value=87, max_value=1024),
+    st.integers(min_value=95, max_value=1024),
     st.sampled_from(["C", "F"]),
+    st.sampled_from([1, 2, 6]),
+    st.floats(min_value=0.1, max_value=2),
+    st.integers(min_value=8_000, max_value=48_000),
 )
-def test_wav_to_image_roundtrip(tmp_dir, wav_file, width, order):
+def test_wav_to_image_roundtrip(tmp_dir, width, order, channels, duration, rate):
+    wav_file = make_wav_file(tmp_dir, channels=channels, duration=duration, rate=rate)
     img_array = encode_wav_to_image(wav_file, width=width, order=order)
 
     img_path = tmp_dir / "test.png"
