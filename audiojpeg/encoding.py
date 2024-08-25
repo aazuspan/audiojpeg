@@ -5,11 +5,11 @@ from scipy.io import wavfile
 from audiojpeg.metadata import Metadata
 
 
-def encode_wav_to_image_rgb(fp: str, width: int=512, dynamic_range: int=100, order="C") -> np.ndarray:
+def encode_wav_to_image(fp: str, width: int=512, dynamic_range: int=100) -> np.ndarray:
     """
     Encode a stereo WAV file into an RGB image.
     """
-    sampling_rate, samples = wavfile.read(fp)
+    sample_rate, samples = wavfile.read(fp)
 
     # Convert mono to stereo
     if samples.ndim == 1:
@@ -33,9 +33,9 @@ def encode_wav_to_image_rgb(fp: str, width: int=512, dynamic_range: int=100, ord
     padded_array = np.pad(rescaled_array, (0, pad_samples))
 
     # Reshape from raveled samples to RGB image
-    reshaped_array = padded_array.reshape(height, width, n_channels, order=order)
+    reshaped_array = padded_array.reshape(height, width, n_channels)
     metadata_header = Metadata(
-        sampling_rate=sampling_rate,
+        sample_rate=sample_rate,
         amplitude_max=amplitude_max,
         amplitude_range=amplitude_max - amplitude_min,
         pad_samples=pad_samples,
@@ -47,7 +47,7 @@ def encode_wav_to_image_rgb(fp: str, width: int=512, dynamic_range: int=100, ord
     return reshaped_array.astype(np.uint8)
 
 
-def decode_image_to_audio_rgb(fp: str) -> np.ndarray:
+def decode_image_to_audio(fp: str) -> np.ndarray:
     """
     Decode an image into a stereo array of samples.
     """
@@ -62,7 +62,7 @@ def decode_image_to_audio_rgb(fp: str) -> np.ndarray:
     # Rescale to the original amplitude range
     amplitude_min = metadata.amplitude_max - metadata.amplitude_range
     image = image / 255 * (metadata.amplitude_max - amplitude_min) + amplitude_min
-    samples = image.ravel(order="F")
+    samples = image.ravel()
 
     # Remove padding
     if metadata.pad_samples > 0:

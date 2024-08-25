@@ -1,53 +1,101 @@
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from typing import Generic, TypeVar, Type
 import numpy as np
 
 
+T = TypeVar("T")
+
+
+class Parameter(ABC, Generic[T]):
+    width: int
+
+    def __new__(cls, value: T, width: int):
+        obj = super().__new__(cls, value)
+        obj.width = width
+        return obj
+
+    @abstractmethod
+    def encode(self) -> int:
+        """Encode the parameter value to an integer."""
+        ...
+
+    @staticmethod
+    @abstractmethod
+    def decode(value: int) -> T:
+        """Decode the parameter value from an integer"""
+        ...
+
+
+class IntParameter(Parameter[int], int):    
+    def encode(self) -> int:
+        return self
+    
+    @staticmethod
+    def decode(value: int) -> int:
+        return value
+
+
+class StrParameter(Parameter[str], str):
+    def encode(self) -> int:
+        return ord(self)
+    
+    @staticmethod
+    def decode(value: int) -> str:
+        return chr(value)
+    
+@dataclass
+class ParameterSpec:
+    width: int
+    type: Type[Parameter]
+
+
+@dataclass
 class Metadata:
-    PARAMETER_WIDTHS = {
-        "sampling_rate": 32,
-        "amplitude_range": 16,
-        "amplitude_max": 16,
-        "pad_samples": 16,
+    PARAMETER_SPECS = {
+        "sample_rate": ParameterSpec(32, IntParameter),
+        "amplitude_range": ParameterSpec(16, IntParameter),
+        "amplitude_max": ParameterSpec(16, IntParameter),
+        "pad_samples": ParameterSpec(16, IntParameter),
     }
 
-    def __init__(self, *, sampling_rate: int, amplitude_max: int, amplitude_range: int, pad_samples: int):
-        self.sampling_rate = sampling_rate
-        """The sampling rate of the audio signal, in hertz."""
-        
-        self.amplitude_max = amplitude_max
-        """The maximum amplitude of the audio signal, prior to scaling."""
-
-        # We store range instead of the min to avoid the complexity of encoding negative
-        # numbers.        
-        self.amplitude_range = amplitude_range
-        """The range between the min and max amplitude, prior to scaling."""
-        
-        self.pad_samples = pad_samples
-        """The number of samples padded onto the audio signal."""
-
-        self._parameters = {
-            name: (getattr(self, name), width) for name, width in self.PARAMETER_WIDTHS.items()
-        }
+    sample_rate: int
+    """The sampling rate of the audio signal, in hertz."""
+    
+    amplitude_max: int
+    """The maximum amplitude of the audio signal, prior to scaling."""
+    
+    amplitude_range: int
+    """The range between the min and max amplitude, prior to scaling."""
+    
+    pad_samples: int
+    """The number of samples padded onto the audio signal."""
 
 
     def _encode(self):
         encoded = []
         start = 0
-        for value, width in self._parameters.values():
-            encoded.append((value << start))
-            start += width
+
+        for param, spec in self.PARAMETER_SPECS.items():
+            raw_value = getattr(self, param)
+            encoded_value = spec.type(raw_value, spec.width).encode()
+            encoded.append((encoded_value << start))
+            start += spec.width
+
         return sum(encoded)
     
     @classmethod
     def _decode(cls, encoded: int):
         decoded = {}
         start = 0
-        for name, width in cls.PARAMETER_WIDTHS.items():
-            mask = (1 << width) - 1
-            value = (encoded >> start) & mask
-            decoded[name] = value
-            start += width
+        for param, spec in cls.PARAMETER_SPECS.items():
+            mask = (1 << spec.width) - 1
+            raw_value = (encoded >> start) & mask
+            decoded_value = spec.type.decode(raw_value)
+            decoded[param] = decoded_value
+            start += spec.width
 
         return decoded
         
