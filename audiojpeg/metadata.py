@@ -29,10 +29,10 @@ class Parameter(ABC, Generic[T]):
         ...
 
 
-class IntParameter(Parameter[int], int):    
+class IntParameter(Parameter[int], int):
     def encode(self) -> int:
         return self
-    
+
     @staticmethod
     def decode(value: int) -> int:
         return value
@@ -41,11 +41,12 @@ class IntParameter(Parameter[int], int):
 class StrParameter(Parameter[str], str):
     def encode(self) -> int:
         return ord(self)
-    
+
     @staticmethod
     def decode(value: int) -> str:
         return chr(value)
-    
+
+
 @dataclass
 class ParameterSpec:
     width: int
@@ -59,20 +60,23 @@ class Metadata:
         "amplitude_range": ParameterSpec(16, IntParameter),
         "amplitude_max": ParameterSpec(16, IntParameter),
         "pad_samples": ParameterSpec(16, IntParameter),
+        "order": ParameterSpec(7, StrParameter),
     }
 
     sample_rate: int
     """The sampling rate of the audio signal, in hertz."""
-    
+
     amplitude_max: int
     """The maximum amplitude of the audio signal, prior to scaling."""
-    
+
     amplitude_range: int
     """The range between the min and max amplitude, prior to scaling."""
-    
+
     pad_samples: int
     """The number of samples padded onto the audio signal."""
 
+    order: str
+    """The order used when reshaping arrays with Numpy."""
 
     def _encode(self):
         encoded = []
@@ -85,7 +89,7 @@ class Metadata:
             start += spec.width
 
         return sum(encoded)
-    
+
     @classmethod
     def _decode(cls, encoded: int):
         decoded = {}
@@ -98,17 +102,17 @@ class Metadata:
             start += spec.width
 
         return decoded
-        
 
-    def to_header(self, width: int=128) -> np.ndarray:
+    def to_header(self, width: int = 128) -> np.ndarray:
         """Encode the metadata into an image header array."""
-        encoded_bits = np.array([int(bit) for bit in f"{self._encode():0{width}b}"]) * 255
+        encoded_bits = (
+            np.array([int(bit) for bit in f"{self._encode():0{width}b}"]) * 255
+        )
 
         if len(encoded_bits) > width:
             raise ValueError(f"Width must be >= {len(encoded_bits)}")
-        
-        return encoded_bits
 
+        return encoded_bits
 
     @classmethod
     def from_header(cls, header: np.ndarray) -> Metadata:
